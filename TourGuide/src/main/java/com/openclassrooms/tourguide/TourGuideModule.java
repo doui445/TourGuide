@@ -7,8 +7,16 @@ import gpsUtil.GpsUtil;
 import rewardCentral.RewardCentral;
 import com.openclassrooms.tourguide.service.RewardsService;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 @Configuration
 public class TourGuideModule {
+
+	@Bean
+	public ExecutorService virtualThreadExecutor() {
+		return Executors.newVirtualThreadPerTaskExecutor(); // instead of newFixedThreadPool(nbOfThreads)
+	}
 	
 	@Bean
 	public GpsUtil getGpsUtil() {
@@ -17,7 +25,7 @@ public class TourGuideModule {
 	
 	@Bean
 	public RewardsService getRewardsService() {
-		return new RewardsService(getGpsUtil(), getRewardCentral());
+		return new RewardsService(getGpsUtil(), getRewardCentral(),  virtualThreadExecutor());
 	}
 	
 	@Bean

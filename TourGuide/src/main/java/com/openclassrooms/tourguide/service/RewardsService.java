@@ -1,10 +1,8 @@
 package com.openclassrooms.tourguide.service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -27,12 +25,13 @@ public class RewardsService {
 	private int attractionProximityRange = 200;
 	private final GpsUtil gpsUtil;
 	private final RewardCentral rewardsCentral;
-	private final ExecutorService executorService = Executors.newVirtualThreadPerTaskExecutor();
+	private final ExecutorService executor;
 	
-	public RewardsService(GpsUtil gpsUtil, RewardCentral rewardCentral) {
+	public RewardsService(GpsUtil gpsUtil, RewardCentral rewardCentral, ExecutorService executor) {
 		this.gpsUtil = gpsUtil;
 		this.rewardsCentral = rewardCentral;
-	}
+        this.executor = executor;
+    }
 	
 	public void setProximityBuffer(int proximityBuffer) {
 		this.proximityBuffer = proximityBuffer;
@@ -41,16 +40,25 @@ public class RewardsService {
 	public void setDefaultProximityBuffer() {
 		proximityBuffer = defaultProximityBuffer;
 	}
+
+	public void calculateRewardsForAll(List<User> users) {
+		// On lance tous les calculs en parallèle et on récupère les "tickets" (futures)
+		CompletableFuture<?>[] futures = users.stream()
+				.map(user -> CompletableFuture.runAsync(() -> calculateRewards(user), executor))
+				.toArray(CompletableFuture[]::new);
+
+		// On bloque jusqu'à ce que tous les users soient traités (join).
+		CompletableFuture.allOf(futures).join();
+	}
 	
 	public void calculateRewards(User user) {
-
 		List<VisitedLocation> userLocations = user.getVisitedLocations();
 		List<Attraction> attractions = gpsUtil.getAttractions();
 
 		// On récupère les récompenses déjà obtenues
-		List<String> rewardedAttractions = user.getUserRewards().stream()
+		Set<String> rewardedAttractions = user.getUserRewards().stream()
 				.map(userReward -> userReward.attraction.attractionName)
-				.toList(); // List ou Set ?
+				.collect(Collectors.toSet()); // Set = 1 seule occurrence par attraction
 
 		for (Attraction attraction : attractions) {
 			if (!rewardedAttractions.contains(attraction.attractionName)) {
@@ -58,7 +66,7 @@ public class RewardsService {
 				for (VisitedLocation location : userLocations) {
 					if (nearAttraction(location, attraction)) {
 						user.addUserReward(new UserReward(location, attraction, getRewardPoints(attraction, user)));
-						break; // Si on trouve une correspondance, on arrête de chercher et on passe à la location suiante
+						break; // Si on trouve une correspondance, on arrête de chercher et on passe à l'attraction suiante
 					}
 				}
 			}

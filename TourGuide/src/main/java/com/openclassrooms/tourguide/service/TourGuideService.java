@@ -15,6 +15,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -38,12 +41,14 @@ public class TourGuideService {
 	private final TripPricer tripPricer = new TripPricer();
 	public final Tracker tracker;
 	boolean testMode = true;
+	private final ExecutorService executor;
 
-	public TourGuideService(GpsUtil gpsUtil, RewardsService rewardsService) {
+	public TourGuideService(GpsUtil gpsUtil, RewardsService rewardsService, ExecutorService executor) {
 		this.gpsUtil = gpsUtil;
 		this.rewardsService = rewardsService;
-		
-		Locale.setDefault(Locale.US);
+        this.executor = executor;
+
+        Locale.setDefault(Locale.US);
 
 		if (testMode) {
 			logger.info("TestMode enabled");
@@ -60,9 +65,8 @@ public class TourGuideService {
 	}
 
 	public VisitedLocation getUserLocation(User user) {
-		VisitedLocation visitedLocation = (user.getVisitedLocations().size() > 0) ? user.getLastVisitedLocation()
-				: trackUserLocation(user);
-		return visitedLocation;
+        return (!user.getVisitedLocations().isEmpty()) ? user.getLastVisitedLocation()
+                : trackUserLocation(user);
 	}
 
 	public User getUser(String userName) {
@@ -80,12 +84,22 @@ public class TourGuideService {
 	}
 
 	public List<Provider> getTripDeals(User user) {
-		int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(i -> i.getRewardPoints()).sum();
+		int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(UserReward::getRewardPoints).sum();
 		List<Provider> providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(),
 				user.getUserPreferences().getNumberOfAdults(), user.getUserPreferences().getNumberOfChildren(),
 				user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
 		user.setTripDeals(providers);
 		return providers;
+	}
+
+	public void trackUserLocationForAll(List<User> users) {
+		// On lance tous les calculs en parallèle et on récupère les "tickets" (futures)
+		CompletableFuture<?>[] futures = users.stream()
+				.map(user -> CompletableFuture.runAsync(() -> trackUserLocation(user), executor))
+				.toArray(CompletableFuture[]::new);
+
+		// On bloque jusqu'à ce que tous les users soient traités (join).
+		CompletableFuture.allOf(futures).join();
 	}
 
 	public VisitedLocation trackUserLocation(User user) {
@@ -115,7 +129,7 @@ public class TourGuideService {
 	}
 
 	/**********************************************************************************
-	 * 
+	 * <p>
 	 * Methods Below: For Internal Testing
 	 * 
 	 **********************************************************************************/
