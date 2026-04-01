@@ -3,7 +3,6 @@ package com.openclassrooms.tourguide;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -13,7 +12,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.time.StopWatch;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import gpsUtil.GpsUtil;
@@ -73,7 +71,7 @@ public class TestPerformance {
 		InternalTestHelper.setInternalUserNumber(100000);
 		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService, executor);
 
-		List<User> allUsers = new ArrayList<>();
+		List<User> allUsers;
 		allUsers = tourGuideService.getAllUsers();
 
 		StopWatch stopWatch = new StopWatch();

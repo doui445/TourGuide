@@ -47,7 +47,7 @@ public class Tracker extends Thread {
 			stopWatch.start();
 			users.forEach(tourGuideService::trackUserLocation);
 			stopWatch.stop();
-			logger.debug("Tracker Time Elapsed: " + TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()) + " seconds.");
+            logger.debug("Tracker Time Elapsed: {} seconds.", TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()));
 			stopWatch.reset();
 			try {
 				logger.debug("Tracker sleeping");
