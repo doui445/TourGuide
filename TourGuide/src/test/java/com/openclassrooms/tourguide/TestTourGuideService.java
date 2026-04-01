@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.openclassrooms.tourguide.dto.AttractionDTO;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -94,13 +95,11 @@ public class TestTourGuideService {
 		assertEquals(user.getUserId(), visitedLocation.userId);
 	}
 
-	@Disabled // Not yet implemented
 	@Test
 	public void getNearbyAttractions() {
 		User user = new User(UUID.randomUUID(), "jon", "000", "jon@tourGuide.com");
-		VisitedLocation visitedLocation = tourGuideService.trackUserLocation(user);
 
-		List<Attraction> attractions = tourGuideService.getNearByAttractions(visitedLocation);
+		List<AttractionDTO> attractions = tourGuideService.getNearbyAttractions(user).attractions();
 
 		tourGuideService.tracker.stopTracking();
 

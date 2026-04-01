@@ -22,7 +22,7 @@ public class RewardsService {
 	// proximity in miles
     private final int defaultProximityBuffer = 10;
 	private int proximityBuffer = defaultProximityBuffer;
-	private int attractionProximityRange = 200;
+	private final int attractionProximityRange = 200;
 	private final GpsUtil gpsUtil;
 	private final RewardCentral rewardsCentral;
 	private final ExecutorService executor;
@@ -42,7 +42,7 @@ public class RewardsService {
 	}
 
 	public void calculateRewardsForAll(List<User> users) {
-		// On lance tous les calculs en parallèle et on récupère les "tickets" (futures)
+		// On lance tous les calculs en parallèle et on récupère les "tickets" (futures).
 		CompletableFuture<?>[] futures = users.stream()
 				.map(user -> CompletableFuture.runAsync(() -> calculateRewards(user), executor))
 				.toArray(CompletableFuture[]::new);
@@ -66,7 +66,7 @@ public class RewardsService {
 				for (VisitedLocation location : userLocations) {
 					if (nearAttraction(location, attraction)) {
 						user.addUserReward(new UserReward(location, attraction, getRewardPoints(attraction, user)));
-						break; // Si on trouve une correspondance, on arrête de chercher et on passe à l'attraction suiante
+						break; // Si on trouve une correspondance, on arrête de chercher et on passe à l'attraction suivante
 					}
 				}
 			}
@@ -80,8 +80,9 @@ public class RewardsService {
 	private boolean nearAttraction(VisitedLocation visitedLocation, Attraction attraction) {
 		return !(getDistance(attraction, visitedLocation.location) > proximityBuffer);
 	}
-	
-	private int getRewardPoints(Attraction attraction, User user) {
+
+	// Passage en public pour y accéder depuis TourGuideService
+	public int getRewardPoints(Attraction attraction, User user) {
 		return rewardsCentral.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
 	}
 	

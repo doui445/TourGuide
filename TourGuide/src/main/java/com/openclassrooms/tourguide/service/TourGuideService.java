@@ -1,5 +1,7 @@
 package com.openclassrooms.tourguide.service;
 
+import com.openclassrooms.tourguide.dto.AttractionDTO;
+import com.openclassrooms.tourguide.dto.NearbyAttractionsDTO;
 import com.openclassrooms.tourguide.helper.InternalTestHelper;
 import com.openclassrooms.tourguide.tracker.Tracker;
 import com.openclassrooms.tourguide.user.User;
@@ -7,18 +9,9 @@ import com.openclassrooms.tourguide.user.UserReward;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
@@ -70,7 +63,9 @@ public class TourGuideService {
 	}
 
 	public User getUser(String userName) {
-		return internalUserMap.get(userName);
+		User user = internalUserMap.get(userName);
+		if (user == null) throw new IllegalArgumentException("User not found: " + userName);
+		return user;
 	}
 
 	public List<User> getAllUsers() {
@@ -84,16 +79,16 @@ public class TourGuideService {
 	}
 
 	public List<Provider> getTripDeals(User user) {
-		int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(UserReward::getRewardPoints).sum();
+		int cumulativeRewardPoints = user.getUserRewards().stream().mapToInt(UserReward::getRewardPoints).sum();
 		List<Provider> providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(),
 				user.getUserPreferences().getNumberOfAdults(), user.getUserPreferences().getNumberOfChildren(),
-				user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+				user.getUserPreferences().getTripDuration(), cumulativeRewardPoints);
 		user.setTripDeals(providers);
 		return providers;
 	}
 
 	public void trackUserLocationForAll(List<User> users) {
-		// On lance tous les calculs en parallèle et on récupère les "tickets" (futures)
+		// On lance tous les calculs en parallèle et on récupère les "tickets" (futures).
 		CompletableFuture<?>[] futures = users.stream()
 				.map(user -> CompletableFuture.runAsync(() -> trackUserLocation(user), executor))
 				.toArray(CompletableFuture[]::new);
@@ -109,23 +104,35 @@ public class TourGuideService {
 		return visitedLocation;
 	}
 
-	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
-		List<Attraction> nearbyAttractions = new ArrayList<>();
-		for (Attraction attraction : gpsUtil.getAttractions()) {
-			if (rewardsService.isWithinAttractionProximity(attraction, visitedLocation.location)) {
-				nearbyAttractions.add(attraction);
-			}
-		}
+	public NearbyAttractionsDTO getNearbyAttractions(User user) {
+		record AttractionDistance(Attraction attraction, double distance) {}
+		Location userLocation = getUserLocation(user).location;
 
-		return nearbyAttractions;
+		List<CompletableFuture<AttractionDTO>> futures = gpsUtil.getAttractions().stream()
+				.map(attraction -> new AttractionDistance(attraction, rewardsService.getDistance(attraction, userLocation)))
+				.sorted(Comparator.comparingDouble(AttractionDistance::distance)) // On trie par distance
+				.limit(5) // On ne garde que les 5 plus proches
+				.map(attractionDistance -> CompletableFuture.supplyAsync(() -> new AttractionDTO( // On transforme les Attractions en AttractionDTO de manière asynchrone
+                        attractionDistance.attraction().attractionName,
+                        attractionDistance.attraction().latitude,
+                        attractionDistance.attraction().longitude,
+                        attractionDistance.distance(),
+                        rewardsService.getRewardPoints(attractionDistance.attraction(), user)), executor))
+				.toList(); // On lance l'exécution
+
+		List<AttractionDTO> nearbyAttractions = futures.stream()
+				.map(CompletableFuture::join) // On attend la fin des 5 tickets
+				.toList(); // On rassemble le tout
+
+		return new NearbyAttractionsDTO(
+				userLocation.latitude,
+				userLocation.longitude,
+				nearbyAttractions
+		);
 	}
 
 	private void addShutDownHook() {
-		Runtime.getRuntime().addShutdownHook(new Thread() {
-			public void run() {
-				tracker.stopTracking();
-			}
-		});
+		Runtime.getRuntime().addShutdownHook(new Thread(tracker::stopTracking));
 	}
 
 	/**********************************************************************************
@@ -148,14 +155,12 @@ public class TourGuideService {
 
 			internalUserMap.put(userName, user);
 		});
-		logger.debug("Created " + InternalTestHelper.getInternalUserNumber() + " internal test users.");
+        logger.debug("Created {} internal test users.", InternalTestHelper.getInternalUserNumber());
 	}
 
 	private void generateUserLocationHistory(User user) {
-		IntStream.range(0, 3).forEach(i -> {
-			user.addToVisitedLocations(new VisitedLocation(user.getUserId(),
-					new Location(generateRandomLatitude(), generateRandomLongitude()), getRandomTime()));
-		});
+		IntStream.range(0, 3).forEach(i -> user.addToVisitedLocations(new VisitedLocation(user.getUserId(),
+                new Location(generateRandomLatitude(), generateRandomLongitude()), getRandomTime())));
 	}
 
 	private double generateRandomLongitude() {
@@ -174,5 +179,4 @@ public class TourGuideService {
 		LocalDateTime localDateTime = LocalDateTime.now().minusDays(new Random().nextInt(30));
 		return Date.from(localDateTime.toInstant(ZoneOffset.UTC));
 	}
-
 }
