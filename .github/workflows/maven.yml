@@ -27,7 +27,7 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
-    - name: install libraries
+    - name: Install libraries
       working-directory: ./TourGuide
       run: |
         mvn install:install-file -Dfile=libs/gpsUtil.jar -DgroupId=gpsUtil -DartifactId=gpsUtil -Dversion=1.0.0 -Dpackaging=jar
@@ -36,3 +36,8 @@ jobs:
     - name: Build & Test with Maven
       working-directory: ./TourGuide
       run: mvn -B clean test --file pom.xml
+    - name: Save JaCoCo report
+      uses: actions/upload-artifact@v4
+      with:
+        name: JaCoCo-Quality-Report
+        path: ../TourGuide/target/site/jacoco/
