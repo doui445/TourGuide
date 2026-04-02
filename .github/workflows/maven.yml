@@ -33,11 +33,16 @@ jobs:
         mvn install:install-file -Dfile=libs/gpsUtil.jar -DgroupId=gpsUtil -DartifactId=gpsUtil -Dversion=1.0.0 -Dpackaging=jar
         mvn install:install-file -Dfile=libs/RewardCentral.jar -DgroupId=rewardCentral -DartifactId=rewardCentral -Dversion=1.0.0 -Dpackaging=jar
         mvn install:install-file -Dfile=libs/TripPricer.jar -DgroupId=tripPricer -DartifactId=tripPricer -Dversion=1.0.0 -Dpackaging=jar
-    - name: Build & Test with Maven
+    - name: Build, Test & Package with Maven
       working-directory: ./TourGuide
-      run: mvn -B clean test --file pom.xml
+      run: mvn -B clean package --file pom.xml
     - name: Save JaCoCo report
       uses: actions/upload-artifact@v4
       with:
         name: JaCoCo-Quality-Report
         path: ./TourGuide/target/site/jacoco/
+    - name: Save Application JAR File
+      uses: actions/upload-artifact@v4
+      with:
+        name: TourGuide-Application
+        path: ./TourGuide/target/*.jar
