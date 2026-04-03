@@ -66,7 +66,7 @@ public class TourGuideService {
 		User user = internalUserMap.get(userName);
 		if (user == null) throw new IllegalArgumentException("User not found: " + userName);
 		return user;
-	}
+	} //
 
 	public List<User> getAllUsers() {
 		return new ArrayList<>(internalUserMap.values());
