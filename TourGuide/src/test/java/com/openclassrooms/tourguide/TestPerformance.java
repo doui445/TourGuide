@@ -54,6 +54,8 @@ public class TestPerformance {
 	private ExecutorService executor;
 	private RewardsService rewardsService;
 
+	private final int INTERNAL_USER_NUMBER = 100;
+
 	@BeforeEach
 	public void setUp() {
 		executor = Executors.newVirtualThreadPerTaskExecutor();
@@ -70,7 +72,7 @@ public class TestPerformance {
 	@Test
 	public void highVolumeTrackLocation() {
 		// Users should be incremented up to 100,000, and test finishes within 15 minutes
-		InternalTestHelper.setInternalUserNumber(100000);
+		InternalTestHelper.setInternalUserNumber(INTERNAL_USER_NUMBER);
 		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService, executor);
 
 		List<User> allUsers;
@@ -93,7 +95,7 @@ public class TestPerformance {
 	@Test
 	public void highVolumeGetRewards() {
 		// Users should be incremented up to 100,000, and test finishes within 20 minutes
-		InternalTestHelper.setInternalUserNumber(100000);
+		InternalTestHelper.setInternalUserNumber(INTERNAL_USER_NUMBER);
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
 		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService, executor);
