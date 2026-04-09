@@ -54,7 +54,7 @@ public class TestPerformance {
 	private ExecutorService executor;
 	private RewardsService rewardsService;
 
-	private final int INTERNAL_USER_NUMBER = 100;
+	private final int INTERNAL_USER_NUMBER = 100000;
 
 	@BeforeEach
 	public void setUp() {
